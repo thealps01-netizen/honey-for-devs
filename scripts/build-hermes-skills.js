@@ -48,13 +48,34 @@ function outPath(name) {
   return path.join(ROOT, '.hermes', 'skills', name, 'SKILL.md');
 }
 
-module.exports = { HERMES_DESCRIPTIONS, NAMES, render, outPath };
+// .hermes/ is also a Hermes plugin root: `hermes plugins install
+// Green-PT/honey-for-devs/.hermes` loads the hand-written .hermes/__init__.py with
+// this manifest. Like plugins/honey/ for Codex, it carries the files its skills
+// and its always-on section read, so a subdirectory install is self-contained.
+function pluginManifest() {
+  return (
+    `name: honey\nversion: ${VERSION}\n` +
+    'description: "Honey always-on: compact directive in every session prompt, /honey levels, the Honey skills."\n' +
+    'author: GreenPT\nlicense: MIT\nhomepage: https://github.com/Green-PT/honey-for-devs\n' +
+    'kind: standalone\nprovides_hooks:\n  - pre_llm_call\n'
+  );
+}
+
+const PLUGIN_COPIES = [
+  ['skills/honey-chat/COMPACT.md', 'COMPACT.md'],
+  ['bin/check.js', 'bin/check.js'],
+];
+
+module.exports = { HERMES_DESCRIPTIONS, NAMES, render, outPath, pluginManifest, PLUGIN_COPIES };
 
 if (require.main === module) {
-  for (const name of NAMES) {
-    const p = outPath(name);
+  const write = (rel, text) => {
+    const p = path.join(ROOT, '.hermes', rel);
     fs.mkdirSync(path.dirname(p), { recursive: true });
-    fs.writeFileSync(p, render(name));
+    fs.writeFileSync(p, text);
     console.log('wrote', path.relative(ROOT, p).replace(/\\/g, '/'));
-  }
+  };
+  for (const name of NAMES) write(path.join('skills', name, 'SKILL.md'), render(name));
+  write('plugin.yaml', pluginManifest());
+  for (const [src, dest] of PLUGIN_COPIES) write(dest, fs.readFileSync(path.join(ROOT, src)));
 }

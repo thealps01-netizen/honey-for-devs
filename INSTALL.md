@@ -59,6 +59,17 @@ into `~/.openclaw/skills/`.
 ## Option A4 — Hermes Agent
 
 ```bash
+hermes plugins install Green-PT/honey-for-devs/.hermes --enable
+```
+
+Installs [`.hermes/`](.hermes/) as a Hermes plugin: Honey is always-on (the compact
+directive goes into every new session's system prompt), `/honey lite|full|ultra|off`
+pins a level, and every Honey skill loads as `honey:<name>` (`skill_view("honey:honey")`).
+`hermes plugins update honey` follows this repo. Start a new session after installing.
+
+Skills only, no plugin:
+
+```bash
 node bin/install.js --only hermes
 ```
 

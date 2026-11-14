@@ -8,6 +8,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import types
 from pathlib import Path
 
 PLUGIN = Path(__file__).resolve().parent.parent / ".hermes"
@@ -69,19 +70,41 @@ for rel in ("bin/eso.js", "eso/index.js", "eso/ccr.js", "agents/hive-scout.md", 
 
 # Entry-time GC on terminal output: rewrites only when shorter, restorable, off with /honey off.
 gc = ctx.hooks["transform_terminal_output"]
-os.environ["HONEY_CCR_DIR"] = tempfile.mkdtemp(prefix="honey-hermes-check-")
+stash_dir = tempfile.mkdtemp(prefix="honey-hermes-check-")
+os.environ["HONEY_CCR_DIR"] = stash_dir
 call = dict(command="x", returncode=0, task_id="", env_type="local")
 storm = "\r\n".join(["2026-01-01T00:00:00Z retrying connection to db:5432"] * 200 + ["done"])
 blanks = "\n".join([f"step {i} ok" for i in range(200)] + ["", "", "", ""] + [f"check {i} ok" for i in range(200)])
 assert gc(output="short", **call) is None
+assert gc(output=storm, **call) is None, "without Hermes' redaction nothing is rewritten or stashed"
+assert os.listdir(stash_dir) == []
+
+# Stand-in for Hermes' redaction: masks one marker, and records the command it was given.
+seen = []
+redact = types.ModuleType("agent.redact")
+redact.redact_terminal_output = lambda output, command=None, **_: (seen.append(command), output.replace("hunter2", "***"))[1]
+sys.modules["agent"], sys.modules["agent.redact"] = types.ModuleType("agent"), redact
+
 assert gc(output=blanks, **call) is None, "a rewrite that is not shorter is refused"
 if shutil.which("node"):
     view = gc(output=storm, **call)
     assert view and len(view) < len(storm), view
-    cmd = re.search(r'`node "([^"]+)" retrieve ([0-9a-f]{16})`', view)
-    assert cmd and Path(cmd.group(1)).is_file(), view
-    back = subprocess.run(["node", cmd.group(1), "retrieve", cmd.group(2)], capture_output=True).stdout
+    cmd = re.search(r'`HONEY_CCR_DIR="([^"]+)" node "([^"]+)" retrieve ([0-9a-f]{16})`', view)
+    assert cmd and Path(cmd.group(2)).is_file(), view
+    restore = dict(os.environ, HONEY_CCR_DIR=cmd.group(1))
+    back = subprocess.run(["node", cmd.group(2), "retrieve", cmd.group(3)], capture_output=True, env=restore).stdout
     assert back.decode("utf-8") == storm, "the stash restores the original byte for byte"
+    # The restore command's own output is left alone, or the original could never be read.
+    assert gc(output=storm, **{**call, "command": cmd.group(0).strip("`")}) is None
+    # Other backends cannot reach this machine's stash; background output arrives as "".
+    for remote in ("docker", "ssh", ""):
+        assert gc(output=storm, **{**call, "env_type": remote}) is None, remote
+    # Redaction runs first, for the command that produced the output: no secret in view or stash.
+    secret = "\n".join(["DB_PASSWORD=hunter2"] + ["retrying connection to db:5432"] * 200)
+    view = gc(output=secret, **{**call, "command": "cat .env && npm ci"})
+    assert view and "hunter2" not in view and seen[-1] == "cat .env && npm ci", view
+    for name in os.listdir(stash_dir):
+        assert "hunter2" not in (Path(stash_dir) / name).read_text(encoding="utf-8"), name
     ctx.commands["honey"]("off")
     assert gc(output=storm, **call) is None, "/honey off disables the GC"
     ctx.commands["honey"]("full")

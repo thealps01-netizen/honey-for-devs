@@ -27,7 +27,7 @@ const path = require("path");
 
 const REPO = path.resolve(__dirname, "..");
 const { NAMES: OPENCLAW_SKILLS } = require("../scripts/build-openclaw-skills");
-const { NAMES: HERMES_SKILLS } = require("../scripts/build-hermes-skills");
+const { NAMES: HERMES_SKILLS, HERMES_EXCLUDED } = require("../scripts/build-hermes-skills");
 const SLUG = "Green-PT/honey-for-devs";
 const URL = "https://github.com/" + SLUG;
 const HOME = os.homedir();
@@ -271,10 +271,18 @@ const CLI_AGENTS = [
     install: () => {
       for (const s of HERMES_SKILLS)
         copySkill(path.join(".hermes", "skills", s, "SKILL.md"), path.join(HERMES_DIR, "skills", s));
+      // an earlier version installed skills that cannot work on Hermes: take them out
+      for (const s of Object.keys(HERMES_EXCLUDED)) {
+        const dir = path.join(HERMES_DIR, "skills", s);
+        if (!dirExists(dir)) continue;
+        if (DRY) { note("  [dry-run] remove " + dir); continue; }
+        fs.rmSync(dir, { recursive: true, force: true });
+        note("  removed " + dir);
+      }
       note("  activate with /honey (or ask); workspace AGENTS.md is always-on");
     },
     uninstall: () => {
-      for (const s of HERMES_SKILLS) {
+      for (const s of [...HERMES_SKILLS, ...Object.keys(HERMES_EXCLUDED)]) {
         const dir = path.join(HERMES_DIR, "skills", s);
         if (DRY) { note("  [dry-run] remove " + dir); continue; }
         fs.rmSync(dir, { recursive: true, force: true });

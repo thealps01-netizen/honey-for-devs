@@ -77,8 +77,18 @@ for (const [id, envKey, skillsDir] of [
         fs.writeFileSync(b, 'Never run `rm -rf` on 3 hosts, see https://x.io.\n');
         cp.execFileSync(process.execPath, [checker, 'fidelity', a, b], { stdio: 'pipe' });
       }
+      // A skill an earlier version installed and this one no longer ships must not stay behind.
+      const dropped = id === 'hermes' ? Object.keys(require('../scripts/build-hermes-skills').HERMES_EXCLUDED) : [];
+      for (const s of dropped) {
+        assert.ok(!fs.existsSync(path.join(skillsDir(tmp), s)), `${s} installed`);
+        fs.mkdirSync(path.join(skillsDir(tmp), s), { recursive: true });
+        fs.writeFileSync(path.join(skillsDir(tmp), s, 'SKILL.md'), 'left by an earlier version\n');
+      }
+      cp.execFileSync(process.execPath, [installer, '--only', id], { env, stdio: 'pipe' });
+      for (const s of dropped) assert.ok(!fs.existsSync(path.join(skillsDir(tmp), s)), `${s} survived a reinstall`);
+      for (const s of dropped) fs.mkdirSync(path.join(skillsDir(tmp), s), { recursive: true });
       cp.execFileSync(process.execPath, [installer, '--uninstall', '--only', id], { env, stdio: 'pipe' });
-      for (const s of users) assert.ok(!fs.existsSync(path.join(skillsDir(tmp), s)), `${s} left behind`);
+      for (const s of [...users, ...dropped]) assert.ok(!fs.existsSync(path.join(skillsDir(tmp), s)), `${s} left behind`);
     } finally {
       fs.rmSync(tmp, { recursive: true, force: true });
     }

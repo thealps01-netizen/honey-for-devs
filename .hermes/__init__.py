@@ -8,10 +8,13 @@ Install: hermes plugins install Green-PT/honey-for-devs/.hermes
 - /honey [lite|full|ultra|off] pins a level. The section is frozen per session (prompt
   cache), so a pinned level adds one short line to each turn instead. The level lives in
   this process: it applies to every session the process serves and resets on restart.
-- Entry-time GC for terminal output (honey-ccr): output of 2,000 characters or more is
-  piped through hooks/logcompress-cli.js, which rewrites it only when the result is
-  shorter and stashes the original in the temp folder first. It needs `node` on PATH and
-  is skipped without it; /honey off disables it. Any failure leaves the output unchanged.
+- Entry-time GC for terminal output (honey-ccr): foreground output of the local terminal
+  backend, 2,000 characters or more, is piped through hooks/logcompress-cli.js, which
+  rewrites it only when the result is shorter and stashes the original in the temp folder
+  first. The hook runs before Hermes redacts secrets, so it applies Hermes' own redaction
+  for that command first: the stash holds what the model would have seen. It needs `node`
+  on PATH and is skipped without it; /honey off disables it. Any failure leaves the output
+  unchanged.
 
 No network. One short-lived `node` process per large terminal output; the only files
 written are those stashes. Uninstall: hermes plugins remove honey.
@@ -79,17 +82,32 @@ def pin_line() -> str:
     return _PINS.get(_mode or DEFAULT_MODE, "")
 
 
-def gc_terminal_output(output: str = "", **_: Any) -> str | None:
+def gc_terminal_output(output: str = "", command: str = "", env_type: str = "", **_: Any) -> str | None:
     """transform_terminal_output hook: the rewritten output, or None to leave it alone.
     What is rewritten is decided by hooks/logcompress-entry.js, the same code the Claude
     Code hook runs. Fail-open: no node, a timeout or an error returns None."""
     global _gc_failure_logged
     if _mode == "off" or not isinstance(output, str) or len(output) < GC_MIN_CHARS:
         return None
+    # The stash and the restore command live on this machine. Another backend (docker, ssh)
+    # cannot reach them, and background output arrives without its backend ("").
+    if env_type != "local":
+        return None
+    # The restore command prints a stashed original: rewriting it again would hide it for good.
+    if "eso.js" in command and "retrieve" in command:
+        return None
     node = shutil.which("node")
     if not node or not GC_CLI.is_file():
         return None
     try:
+        # This hook runs before Hermes' secret redaction, and how strict that is depends on
+        # the command. Redact now, for this command, so neither the stash nor a later
+        # restore holds more than the model would have seen. Redacting twice is harmless.
+        from agent.redact import redact_terminal_output
+    except ImportError:
+        return None
+    try:
+        output = redact_terminal_output(output, command)
         # Bytes in and out: text mode would rewrite line endings on Windows.
         done = subprocess.run(
             [node, str(GC_CLI)],
@@ -99,7 +117,7 @@ def gc_terminal_output(output: str = "", **_: Any) -> str | None:
             creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
         )
         view = done.stdout.decode("utf-8") if done.returncode == 0 else ""
-    except (OSError, ValueError, subprocess.SubprocessError) as exc:
+    except Exception as exc:  # fail open: a hook must never break the terminal tool
         if not _gc_failure_logged:
             _gc_failure_logged = True
             _log.warning("honey: terminal-output GC skipped, output left unchanged (%s)", exc)

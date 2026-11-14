@@ -19,10 +19,13 @@ const { crush } = require("../eso/ccr");
 const CRUSH_MIN_ITEMS = 20;
 const CRUSH_MIN_CHARS = 2000;
 
+// Where originals are stashed; bin/eso.js resolves the same folder for `retrieve`.
+const stashDir = () => process.env.HONEY_CCR_DIR || path.join(os.tmpdir(), "honey-ccr");
+
+// Tool output can carry credentials: keep the stash readable by its owner only.
 function stash(text, hash) {
-  const cacheDir = process.env.HONEY_CCR_DIR || path.join(os.tmpdir(), "honey-ccr");
-  fs.mkdirSync(cacheDir, { recursive: true });
-  fs.writeFileSync(path.join(cacheDir, `${hash}.json`), text);
+  fs.mkdirSync(stashDir(), { recursive: true, mode: 0o700 });
+  fs.writeFileSync(path.join(stashDir(), `${hash}.json`), text, { mode: 0o600 });
 }
 
 // shrink(text, retrieve) -> the replacement output, or null to leave the output alone.
@@ -60,4 +63,4 @@ function shrink(text, retrieve = "eson retrieve") {
   return out;
 }
 
-module.exports = { shrink, CRUSH_MIN_ITEMS, CRUSH_MIN_CHARS };
+module.exports = { shrink, stashDir, CRUSH_MIN_ITEMS, CRUSH_MIN_CHARS };

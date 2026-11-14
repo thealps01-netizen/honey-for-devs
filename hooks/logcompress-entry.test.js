@@ -28,10 +28,16 @@ test("a retry storm is collapsed, shorter, and restorable with the command in th
   const text = lines(60, () => "2026-01-01T00:00:00Z retrying connection to db:5432") + "\ndone";
   const { out, env } = filter(text);
   assert.ok(out && out.length < text.length);
-  const cmd = out.match(/`node "([^"]+)" retrieve ([0-9a-f]{16})`/);
+  const cmd = out.match(/`HONEY_CCR_DIR="([^"]+)" node "([^"]+)" retrieve ([0-9a-f]{16})`/);
   assert.ok(cmd, out);
-  assert.ok(fs.existsSync(cmd[1]), "the note names an eso.js that exists");
-  assert.strictEqual(execFileSync("node", [cmd[1], "retrieve", cmd[2]], { env, encoding: "utf8" }), text);
+  assert.ok(fs.existsSync(cmd[2]), "the note names an eso.js that exists");
+  // restore with the folder from the note alone, as a shell with another temp folder would
+  const bare = { ...env, HONEY_CCR_DIR: cmd[1] };
+  assert.strictEqual(execFileSync("node", [cmd[2], "retrieve", cmd[3]], { env: bare, encoding: "utf8" }), text);
+  if (process.platform !== "win32") {
+    const file = path.join(cmd[1], `${cmd[3]}.json`);
+    assert.strictEqual(fs.statSync(file).mode & 0o077, 0, "the stash is readable by its owner only");
+  }
 });
 
 test("output with nothing to collapse prints nothing", () => {

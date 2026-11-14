@@ -35,9 +35,10 @@ The crew is read-only by design — they locate and review; you decide and edit.
 | `hive-scout` | locate symbols / callers / configs / patterns | compact id-keyed JSON map |
 | `hive-reviewer` | review diff/files for bugs + over-engineering + verbosity | columnar id-keyed JSON findings |
 
-Host without named subagents (Hermes plugin): delegate with the host's own subagent tool
-and pass the crew member's brief as the task context. The briefs are `agents/hive-scout.md`
-and `agents/hive-reviewer.md` at the plugin root, two directories above this file.
+Hermes, installed as a plugin (`hermes plugins install`), has no named subagents: delegate
+with its own subagent tool and pass the crew member's brief as the task context. The briefs
+are `agents/hive-scout.md` and `agents/hive-reviewer.md` at the plugin root, two directories
+above this file. A skills-only copy of this file does not have them.
 
 ## Reading a hive return (Lever 3, in reverse)
 

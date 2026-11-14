@@ -58,8 +58,9 @@ Caveat: the hook needs Claude Code 2.1.121+; older builds can't rewrite Bash out
 (a session-start warning tells you). Manual `some-tool | eson crush` piping works on
 any version — prefer it there.
 
-Hermes plugin: the same entry-time GC runs on terminal output through the plugin's own
-hook (it needs `node` on PATH; `/honey off` disables it). `eson` is not on PATH there.
-A rewritten result ends with the full restore command; for manual use run
-`node <plugin root>/bin/eso.js crush` or `... retrieve <hash>`, the plugin root being
-two directories above this file.
+Hermes, installed as a plugin (`hermes plugins install`): the same entry-time GC runs on
+local terminal output through the plugin's own hook (it needs `node` on PATH; `/honey off`
+disables it). `eson` is not on PATH there. A rewritten result ends with the full restore
+command; for manual use run `node <plugin root>/bin/eso.js crush` or `... retrieve <hash>`,
+the plugin root being two directories above this file. A skills-only copy of this file
+has neither the hook nor `eso.js`.

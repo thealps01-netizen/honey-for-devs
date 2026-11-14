@@ -7,3 +7,4 @@ homepage: https://github.com/Green-PT/honey-for-devs
 kind: standalone
 provides_hooks:
   - pre_llm_call
+  - transform_terminal_output

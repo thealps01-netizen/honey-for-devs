@@ -6,8 +6,15 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('fs');
-const { NAMES, render, outPath, HERMES_DESCRIPTIONS } = require('../scripts/build-hermes-skills');
+const { NAMES, render, outPath, HERMES_DESCRIPTIONS, HERMES_EXCLUDED } = require('../scripts/build-hermes-skills');
 const { sourceBody } = require('../scripts/build-openclaw-skills');
+
+for (const name of Object.keys(HERMES_EXCLUDED)) {
+  test(`${name}: left out of the Hermes package`, () => {
+    assert.ok(!NAMES.includes(name));
+    assert.ok(!fs.existsSync(outPath(name)), 'stale — run: node scripts/build-hermes-skills.js');
+  });
+}
 
 for (const name of NAMES) {
   test(`${name}: committed Hermes skill matches the generator`, () => {

@@ -11,7 +11,7 @@
 
 const fs = require('fs');
 const path = require('path');
-const { NAMES, sourceBody } = require('./build-openclaw-skills');
+const { NAMES: ALL_NAMES, sourceBody } = require('./build-openclaw-skills');
 
 const ROOT = path.join(__dirname, '..');
 const VERSION = require('../package.json').version;
@@ -20,9 +20,7 @@ const HERMES_DESCRIPTIONS = {
   'honey': 'Write less code and say less about it. Cuts token cost.',
   'honey-review': 'Review a diff for over-engineering; terse delete-list.',
   'honey-design': 'Same pixels, fewer tokens: dense CSS for user-facing UI.',
-  'honey-gain': 'Honey benchmark scoreboard vs baseline and rival skills.',
   'honey-debt': 'Harvest honey shortcut markers into a debt ledger.',
-  'honey-eco': 'Report session token and CO2 savings vs no-Honey baseline.',
   'honey-ccr': 'Compress-cache-retrieve huge array tool output.',
   'honey-px': 'Read huge read-only text as PNG pages; big input cut.',
   'honey-compress': 'Rewrite context files terse to cut per-session tokens.',
@@ -31,6 +29,14 @@ const HERMES_DESCRIPTIONS = {
   'honey-loop': 'Cost discipline for recurring loop runs.',
   'honey-superpowers': 'Inject Honey levers into dispatched subagent prompts.',
 };
+
+// Skills that cannot work from a Hermes install, with the reason. They are left out of
+// the package instead of shipping instructions that fail.
+const HERMES_EXCLUDED = {
+  'honey-gain': 'recomputes bench/results/, which only a repo checkout has',
+  'honey-eco': 'reads a Claude Code session transcript',
+};
+const NAMES = ALL_NAMES.filter((name) => !(name in HERMES_EXCLUDED));
 
 function render(name) {
   const desc = HERMES_DESCRIPTIONS[name];
@@ -57,16 +63,26 @@ function pluginManifest() {
     `name: honey\nversion: ${VERSION}\n` +
     'description: "Honey always-on: compact directive in every session prompt, /honey levels, the Honey skills."\n' +
     'author: GreenPT\nlicense: MIT\nhomepage: https://github.com/Green-PT/honey-for-devs\n' +
-    'kind: standalone\nprovides_hooks:\n  - pre_llm_call\n'
+    'kind: standalone\nprovides_hooks:\n  - pre_llm_call\n  - transform_terminal_output\n'
   );
 }
 
 const PLUGIN_COPIES = [
   ['skills/honey-chat/COMPACT.md', 'COMPACT.md'],
   ['bin/check.js', 'bin/check.js'],
+  // honey-ccr: the eson CLI, and the entry-time GC the terminal-output hook runs
+  ['bin/eso.js', 'bin/eso.js'],
+  ['eso/index.js', 'eso/index.js'],
+  ['eso/ccr.js', 'eso/ccr.js'],
+  ['hooks/logcompress.js', 'hooks/logcompress.js'],
+  ['hooks/logcompress-entry.js', 'hooks/logcompress-entry.js'],
+  ['hooks/logcompress-cli.js', 'hooks/logcompress-cli.js'],
+  // honey-hive: the crew briefs, passed as the context of a Hermes subagent
+  ['agents/hive-scout.md', 'agents/hive-scout.md'],
+  ['agents/hive-reviewer.md', 'agents/hive-reviewer.md'],
 ];
 
-module.exports = { HERMES_DESCRIPTIONS, NAMES, render, outPath, pluginManifest, PLUGIN_COPIES };
+module.exports = { HERMES_DESCRIPTIONS, HERMES_EXCLUDED, NAMES, render, outPath, pluginManifest, PLUGIN_COPIES };
 
 if (require.main === module) {
   const write = (rel, text) => {
@@ -76,6 +92,7 @@ if (require.main === module) {
     console.log('wrote', path.relative(ROOT, p).replace(/\\/g, '/'));
   };
   for (const name of NAMES) write(path.join('skills', name, 'SKILL.md'), render(name));
+  for (const name of Object.keys(HERMES_EXCLUDED)) fs.rmSync(path.dirname(outPath(name)), { recursive: true, force: true });
   write('plugin.yaml', pluginManifest());
   for (const [src, dest] of PLUGIN_COPIES) write(dest, fs.readFileSync(path.join(ROOT, src)));
 }

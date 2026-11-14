@@ -32,6 +32,29 @@ ok("small output ANSI stripped", !compress(small).view.includes("\x1b["));
 const trace = Array.from({ length: 30 }, (_, i) => `  File "app/x${i}.py", line ${i}, in f${i}`).join("\n");
 ok("distinct lines untouched", compress(trace).dropped === 0);
 
+// Lines that differ in their body are data, whatever the difference looks like. Each case is
+// padded past the size gate with lines that do not repeat.
+const pad = Array.from({ length: 30 }, (_, i) => `step ${i} ok`).join("\n") + "\n";
+const kept = (name, rows) => {
+  const { view: v, dropped: d } = compress(pad + rows.join("\n"));
+  ok(`${name} untouched`, d === 0 && rows.every((r) => v.includes(r)));
+};
+const uuid = (i) => `8548f1c0-2a41-4d61-9be4-b43d661de${String(i).padStart(3, "0")}`;
+kept("files named by UUID", Array.from({ length: 12 }, (_, i) => `${uuid(i)}.tmp`));
+kept("rows that differ in a date inside the line",
+  Array.from({ length: 8 }, (_, i) => `{'ts': '2026-09-${10 + i}T02:44:43.385899+00:00', 'actor': 'agent', 'action': 'patch'}`));
+kept("rows that differ in a clock time inside the line",
+  Array.from({ length: 8 }, (_, i) => `job nightly finished at 06:1${i}:00 status ok`));
+kept("lines that differ in a hex value", Array.from({ length: 8 }, (_, i) => `freed block at 0x7ffd00${i}0`));
+kept("log lines whose body differs",
+  Array.from({ length: 8 }, (_, i) => `2026-10-27 15:24:0${i}.158 W request ${uuid(i)} failed`));
+// ...while identical lines, and log lines that differ in the leading timestamp only, collapse.
+const same = (name, rows) => ok(`${name} collapse`, compress(pad + rows.join("\n")).dropped === rows.length - 1);
+same("identical lines", Array(40).fill("retrying connection to db:5432"));
+same("date-time prefixed log lines", Array.from({ length: 9 }, (_, i) => `2026-10-27 15:24:0${i}.158 W Get coolers actual RPMs failed.`));
+same("ISO prefixed log lines", Array.from({ length: 9 }, (_, i) => `2026-10-27T15:24:0${i},120+03:00 retrying`));
+same("indented clock-time prefixed lines", Array.from({ length: 9 }, (_, i) => `  09:15:0${i} waiting for lock`));
+
 // --- hook: ultra-gated, fail-open, emits updatedToolOutput -------------------
 const HOOK = path.join(__dirname, "logcompress-hook.js");
 const run = (payload, env) =>

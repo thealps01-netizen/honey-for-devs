@@ -25,6 +25,8 @@ const stashDir = () => process.env.HONEY_CCR_DIR || path.join(os.tmpdir(), "hone
 // Tool output can carry credentials: keep the stash readable by its owner only.
 function stash(text, hash) {
   fs.mkdirSync(stashDir(), { recursive: true, mode: 0o700 });
+  // a folder an earlier version made keeps its wider mode unless it is set again
+  if (process.platform !== "win32") fs.chmodSync(stashDir(), 0o700);
   fs.writeFileSync(path.join(stashDir(), `${hash}.json`), text, { mode: 0o600 });
 }
 

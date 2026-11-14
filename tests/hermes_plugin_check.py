@@ -79,11 +79,19 @@ assert gc(output="short", **call) is None
 assert gc(output=storm, **call) is None, "without Hermes' redaction nothing is rewritten or stashed"
 assert os.listdir(stash_dir) == []
 
-# Stand-in for Hermes' redaction: masks one marker, and records the command it was given.
+# Stand-ins for Hermes' redaction and control-sequence stripping. Like Hermes', the
+# redaction masks an assignment only when the name sits directly before `=`, and it
+# records the command it was given.
 seen = []
 redact = types.ModuleType("agent.redact")
-redact.redact_terminal_output = lambda output, command=None, **_: (seen.append(command), output.replace("hunter2", "***"))[1]
+redact.redact_terminal_output = lambda output, command=None, **_: (
+    seen.append(command), re.sub(r"(?m)^(DB_PASSWORD=).*$", r"\1***", output))[1]
 sys.modules["agent"], sys.modules["agent.redact"] = types.ModuleType("agent"), redact
+assert gc(output=storm, **call) is None, "without Hermes' control-sequence stripping nothing is rewritten"
+assert os.listdir(stash_dir) == []
+ansi = types.ModuleType("tools.ansi_strip")
+ansi.strip_ansi = lambda text: re.sub(r"\x1b\[[0-9;]*[A-Za-z]", "", text)
+sys.modules["tools"], sys.modules["tools.ansi_strip"] = types.ModuleType("tools"), ansi
 
 assert gc(output=blanks, **call) is None, "a rewrite that is not shorter is refused"
 if shutil.which("node"):
@@ -100,11 +108,13 @@ if shutil.which("node"):
     for remote in ("docker", "ssh", ""):
         assert gc(output=storm, **{**call, "env_type": remote}) is None, remote
     # Redaction runs first, for the command that produced the output: no secret in view or stash.
-    secret = "\n".join(["DB_PASSWORD=hunter2"] + ["retrying connection to db:5432"] * 200)
-    view = gc(output=secret, **{**call, "command": "cat .env && npm ci"})
-    assert view and "hunter2" not in view and seen[-1] == "cat .env && npm ci", view
-    for name in os.listdir(stash_dir):
-        assert "hunter2" not in (Path(stash_dir) / name).read_text(encoding="utf-8"), name
+    # A colour code inside the name must not hide the assignment from redaction.
+    for line in ("DB_PASSWORD=hunter2", "DB_\x1b[01;31m\x1b[KPASSWORD\x1b[m\x1b[K=hunter2"):
+        secret = "\n".join([line] + ["retrying connection to db:5432"] * 200)
+        view = gc(output=secret, **{**call, "command": "cat .env && npm ci"})
+        assert view and "hunter2" not in view and seen[-1] == "cat .env && npm ci", view
+        for name in os.listdir(stash_dir):
+            assert "hunter2" not in (Path(stash_dir) / name).read_text(encoding="utf-8"), (line, name)
     ctx.commands["honey"]("off")
     assert gc(output=storm, **call) is None, "/honey off disables the GC"
     ctx.commands["honey"]("full")

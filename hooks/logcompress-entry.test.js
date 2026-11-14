@@ -11,6 +11,7 @@ const path = require("node:path");
 const CLI = path.join(__dirname, "logcompress-cli.js");
 const filter = (input) => {
   const ccrDir = fs.mkdtempSync(path.join(os.tmpdir(), "honey-gc-entry-"));
+  if (process.platform !== "win32") fs.chmodSync(ccrDir, 0o755); // as an earlier version left it
   const env = { ...process.env, HONEY_CCR_DIR: ccrDir };
   return { out: execFileSync("node", [CLI], { input, env, encoding: "utf8" }), env, ccrDir };
 };
@@ -37,6 +38,7 @@ test("a retry storm is collapsed, shorter, and restorable with the command in th
   if (process.platform !== "win32") {
     const file = path.join(cmd[1], `${cmd[3]}.json`);
     assert.strictEqual(fs.statSync(file).mode & 0o077, 0, "the stash is readable by its owner only");
+    assert.strictEqual(fs.statSync(cmd[1]).mode & 0o077, 0, "so is its folder, even one that existed");
   }
 });
 

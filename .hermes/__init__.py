@@ -11,8 +11,9 @@ Install: hermes plugins install Green-PT/honey-for-devs/.hermes
 - Entry-time GC for terminal output (honey-ccr): foreground output of the local terminal
   backend, 2,000 characters or more, is piped through hooks/logcompress-cli.js, which
   rewrites it only when the result is shorter and stashes the original in the temp folder
-  first. The hook runs before Hermes redacts secrets, so it applies Hermes' own redaction
-  for that command first: the stash holds what the model would have seen. It needs `node`
+  first. The hook runs before Hermes redacts secrets, so it strips control sequences and
+  applies Hermes' own redaction for that command first: the stash holds what the model
+  would have seen. It needs `node`
   on PATH and is skipped without it; /honey off disables it. Any failure leaves the output
   unchanged.
 
@@ -101,13 +102,16 @@ def gc_terminal_output(output: str = "", command: str = "", env_type: str = "", 
         return None
     try:
         # This hook runs before Hermes' secret redaction, and how strict that is depends on
-        # the command. Redact now, for this command, so neither the stash nor a later
-        # restore holds more than the model would have seen. Redacting twice is harmless.
+        # the command. Redact now, for this command and in Hermes' own order (control
+        # sequences out first: a colour code inside `NAME=value` hides it from redaction),
+        # so neither the stash nor a later restore holds more than the model would have
+        # seen. Hermes repeats both steps afterwards; twice is harmless.
         from agent.redact import redact_terminal_output
+        from tools.ansi_strip import strip_ansi
     except ImportError:
         return None
     try:
-        output = redact_terminal_output(output, command)
+        output = redact_terminal_output(strip_ansi(output), command)
         # Bytes in and out: text mode would rewrite line endings on Windows.
         done = subprocess.run(
             [node, str(GC_CLI)],

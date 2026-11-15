@@ -38,7 +38,7 @@ Any time you are about to dispatch a subagent under a Superpowers-style workflow
 ## What to inject
 
 **On Claude Code with the Honey plugin, skip the paste**: the plugin's
-`SubagentStart` hook ([`hooks/honey-subagent.js`](../../hooks/honey-subagent.js))
+`SubagentStart` hook (`hooks/honey-subagent.js`)
 injects the matching directive into every spawned subagent automatically
 (reviewer-shaped agent types get the reviewer variant). The blocks below are for
 other harnesses, or when the hook isn't installed.

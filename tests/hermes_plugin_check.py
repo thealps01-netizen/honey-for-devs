@@ -64,8 +64,10 @@ for name in on_disk:
 
 # Skills that cannot work from a Hermes install are not shipped; what the shipped ones
 # point at is in the plugin folder.
-assert not {"honey-gain", "honey-eco"} & set(on_disk), on_disk
-for rel in ("bin/eso.js", "eso/index.js", "eso/ccr.js", "agents/hive-scout.md", "agents/hive-reviewer.md"):
+assert not {"honey-gain"} & set(on_disk), on_disk
+for rel in ("bin/eso.js", "eso/index.js", "eso/ccr.js", "agents/hive-scout.md", "agents/hive-reviewer.md",
+            "scripts/eco-session.js", "hooks/eco.js", "hooks/eco-config.json", "hooks/eco-models.json",
+            "hooks/honey-state.js"):
     assert (PLUGIN / rel).is_file(), rel
 
 # Entry-time GC on terminal output: rewrites only when shorter, restorable, off with /honey off.

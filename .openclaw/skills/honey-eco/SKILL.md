@@ -20,6 +20,13 @@ node scripts/eco-session.js --transcript PATH --mode full
 
 Then report terse — output tokens, CO₂eq (g), and the `saved` line — in a line or two. Keep the exact numbers the script prints; don't round away precision.
 
+Hermes, installed as a plugin (`hermes plugins install`): run
+`node <plugin root>/scripts/eco-session.js`, the plugin root being two directories above
+this file. It reads this session and its subagent sessions from Hermes' `state.db` (Hermes
+sets `HERMES_SESSION_ID` and `HERMES_HOME` for your commands) and needs Node 22.13+ or 23.4+
+for the built-in `node:sqlite`. `--mode` defaults to full there. A skills-only copy of this
+file has no script.
+
 ## Two numbers, two epistemic statuses — never merge them
 
 - **CO₂eq is measured** for this session: real output tokens through the EcoLogits port.

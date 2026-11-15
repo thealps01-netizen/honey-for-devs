@@ -28,13 +28,13 @@ const HERMES_DESCRIPTIONS = {
   'honey-memory': 'Per-project persistent memory files indexed in MEMORY.md.',
   'honey-loop': 'Cost discipline for recurring loop runs.',
   'honey-superpowers': 'Inject Honey levers into dispatched subagent prompts.',
+  'honey-eco': 'Session output tokens and CO2 estimate; Honey savings.',
 };
 
 // Skills that cannot work from a Hermes install, with the reason. They are left out of
 // the package instead of shipping instructions that fail.
 const HERMES_EXCLUDED = {
   'honey-gain': 'recomputes bench/results/, which only a repo checkout has',
-  'honey-eco': 'reads a Claude Code session transcript',
 };
 const NAMES = ALL_NAMES.filter((name) => !(name in HERMES_EXCLUDED));
 
@@ -80,6 +80,12 @@ const PLUGIN_COPIES = [
   // honey-hive: the crew briefs, passed as the context of a Hermes subagent
   ['agents/hive-scout.md', 'agents/hive-scout.md'],
   ['agents/hive-reviewer.md', 'agents/hive-reviewer.md'],
+  // honey-eco: the session report, the EcoLogits port it reuses, and the mode reader
+  ['scripts/eco-session.js', 'scripts/eco-session.js'],
+  ['hooks/eco.js', 'hooks/eco.js'],
+  ['hooks/eco-config.json', 'hooks/eco-config.json'],
+  ['hooks/eco-models.json', 'hooks/eco-models.json'],
+  ['hooks/honey-state.js', 'hooks/honey-state.js'],
 ];
 
 module.exports = { HERMES_DESCRIPTIONS, HERMES_EXCLUDED, NAMES, render, outPath, pluginManifest, PLUGIN_COPIES };

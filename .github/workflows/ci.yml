@@ -1,9 +1,8 @@
 name: CI
 on:
   push:
-    branches: [main, develop, feat/hermes-usable-ccr]
+    branches: [main, develop]
   pull_request:
-  workflow_dispatch:
 
 jobs:
   test:

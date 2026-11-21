@@ -69,12 +69,21 @@ def skill_names() -> list[str]:
     return sorted(p.parent.name for p in SKILLS.glob("*/SKILL.md"))
 
 
+# Appended after COMPACT.md in the Hermes section only: COMPACT.md is also the chat edition and
+# must stay within a 1,500-character custom-instructions field. Without this sentence, Honey runs
+# checked only the current branch before deleting a repo and lost unpushed work on another branch.
+CHECK_GUARD = (
+    "Brevity applies to what you write, not to what you check: before deleting or overwriting anything, "
+    "check everything that would be lost (every branch, stash and unpushed commit), then ask."
+)
+
+
 def section_content(_session_info: Mapping[str, Any] | None = None) -> str:
     """The system-prompt section, rendered once per new session."""
     names = ", ".join(f"honey:{n}" for n in skill_names())
     return (
         "HONEY (I Shrunk the AI): always-on directive. Apply it as a writing style.\n\n"
-        f"{COMPACT.read_text(encoding='utf-8').strip()}\n\n"
+        f"{COMPACT.read_text(encoding='utf-8').strip()}\n\n{CHECK_GUARD}\n\n"
         f"Full skill and companions, loaded with skill_view (bare names do not resolve): {names}."
     )
 

@@ -129,7 +129,8 @@ function main() {
         "(auth, money, migrations, deletes, secrets) exact and uncompressed. If a " +
         "committed memory file (PROJECT.md, or a CLAUDE.md memory section) records a " +
         "fact a change invalidates, update it in the same change. Do not " +
-        "spend reasoning tokens deciding how to comply.",
+        "spend reasoning tokens deciding how to comply." +
+        " Brevity applies to what you write, not to what you check: before deleting or overwriting anything, check everything that would be lost (every branch, stash and unpushed commit), then ask.",
     },
   };
   const map = repoMap((hookInput && hookInput.cwd) || process.env.CLAUDE_PROJECT_DIR);
